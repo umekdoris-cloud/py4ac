@@ -55,7 +55,7 @@ def generate_polynomial_data(n: int = 20, noise: float = 1.0,
     return X, y
 
 
-def generate_two_blobs(n: int = 300, seed: int = 42) -> tuple:
+def generate_two_blobs(n: int = 300, seed: int = 42, cluster_std: float = 5.0) -> tuple:
     """Generate a simple two-class blob dataset.
 
     Used in Notebook 2 to illustrate classification decision boundaries.
@@ -75,7 +75,7 @@ def generate_two_blobs(n: int = 300, seed: int = 42) -> tuple:
         Binary class labels (0 or 1).
     """
     from sklearn.datasets import make_blobs
-    X, y = make_blobs(n_samples=n, centers=2, cluster_std=1.8,
+    X, y = make_blobs(n_samples=n, centers=2, cluster_std=cluster_std,
                        random_state=seed)
     return X, y
 
@@ -181,15 +181,18 @@ def plot_model_selection_regression(X: np.ndarray, y: np.ndarray) -> None:
     for ax, title, deg, col in zip(axes, titles, degrees, colours):
         coeffs = np.polyfit(X, y, deg)
         y_plot = np.polyval(coeffs, x_plot)
-        # Clip extreme values for the high-degree polynomial
-        y_range = y.max() - y.min()
-        y_plot = np.clip(y_plot, y.min() - 2 * y_range, y.max() + 2 * y_range)
 
         ax.scatter(X, y, c="steelblue", edgecolors="k", s=50, zorder=3)
         ax.plot(x_plot, y_plot, color=col, linewidth=2.5)
         ax.set_title(title, fontsize=11)
         ax.set_xlabel("$x$")
         ax.set_ylabel("$y$")
+
+    # Share the same y-axis limits across all three subplots
+    y_margin = (y.max() - y.min()) * 0.2
+    shared_ylim = (y.min() - y_margin, y.max() + y_margin)
+    for ax in axes:
+        ax.set_ylim(shared_ylim)
 
     plt.tight_layout()
     plt.show()
@@ -305,3 +308,37 @@ def plot_feature_importance(model, feature_names: list, top_n: int = 10,
     ax.set_title(title, fontsize=12, fontweight="bold")
     plt.tight_layout()
     plt.show()
+
+
+def load_titanic_data() -> tuple:
+    """Load and prepare the Titanic dataset for classification.
+
+    Loads the Titanic dataset via seaborn, selects relevant features,
+    encodes categorical variables (sex, embarked), and drops rows with
+    missing values.
+
+    Returns
+    -------
+    X : np.ndarray, shape (n, 7)
+        Feature matrix with columns: pclass, sex, age, sibsp, parch,
+        fare, embarked.
+    y : np.ndarray, shape (n,)
+        Binary survival labels (0 = died, 1 = survived).
+    feature_names : list of str
+        Human-readable names for the seven features.
+    """
+    import seaborn as sns
+
+    titanic = sns.load_dataset('titanic')
+
+    df = titanic[['survived', 'pclass', 'sex', 'age', 'sibsp',
+                   'parch', 'fare', 'embarked']].copy()
+    df['sex'] = df['sex'].map({'male': 0, 'female': 1})
+    df['embarked'] = df['embarked'].map({'S': 0, 'C': 1, 'Q': 2})
+    df = df.dropna()
+
+    feature_names = ['Pclass', 'Sex', 'Age', 'SibSp', 'Parch', 'Fare', 'Embarked']
+    X = df[['pclass', 'sex', 'age', 'sibsp', 'parch', 'fare', 'embarked']].values
+    y = df['survived'].values
+
+    return X, y, feature_names
